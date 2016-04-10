@@ -23,44 +23,41 @@ buildIndices i w h =
     , (leftIndex i w), i, (rightIndex i w)
     , (leftIndex down w), down, (rightIndex down w)]
 
-getIndices indices cells =
-  --Array.filter (\n -> List.member n indices) cells
-  List.map (\n -> (Array.get n cells)) indices
+getNeighbors indices cells =
+  List.map (\n -> Array.get n cells |> Maybe.withDefault 0) indices
 
-justToInt: Maybe Int -> Int
-justToInt x =
-  case x of
-    Just y -> y
-    Nothing -> 0
+countNeighbors board width height =
+  let
+    boardArr = Array.fromList board
+  in
+    (\n -> boardArr
+      |> getNeighbors (buildIndices n width height)
+      |> List.sum)
 
-neighborCount board width height =
-  (\n -> board
-    |> getIndices (buildIndices n width height)
-    |> List.map justToInt
-    |> List.sum)
-
-neighborsToNewGen: Array.Array Int -> Array.Array Int
-neighborsToNewGen arr =
-  Array.indexedMap (\i n ->
-    if n == 4 then
-      justToInt (Array.get i arr)
-    else if n == 3 then
-      1
-    else 0) arr
+neighborsToNewGen: Int -> Int -> Int
+neighborsToNewGen boardVal neighborCount =
+  if neighborCount == 4 then
+    boardVal
+  else if neighborCount == 3 then
+    1
+  else
+    0
 
 type alias World =
   { w: Int
   , h: Int
-  , b: Array.Array Int
+  , b: List Int
   }
 
 worldCensus: World -> World
 worldCensus world =
-  { w = world.w
-  , h = world.h
-  , b = Array.indexedMap (\n _ -> (neighborCount world.b world.w world.h) n) world.b
-      |> neighborsToNewGen
-  }
+  let
+    listBoard = Array.fromList world.b
+    nc = Array.toList (Array.indexedMap (\n _ -> (countNeighbors world.b world.w world.h) n) listBoard)
+  in
+    { world |
+      b = (List.map2 neighborsToNewGen world.b nc)
+    }
 
 -- World Update
 
@@ -69,28 +66,27 @@ updateWorld {delta} model =
   worldCensus model
 
 -- View
-
 view : World -> Html
-view model =
-  div []
-    [
-    div [] (List.map (\n -> text (toString n)) (Array.toList model.b))
-    ]
+view world =
+  pre []
+    (List.indexedMap (\i n -> text ((toString n) ++ (if (i+1) % world.w == 0 then "\n" else "")) ) world.b)
 
 
 defaultWorld : World
 defaultWorld =
-  { w = 5
-  , h = 5
-  , b = Array.fromList [1,0,0,0,0,
-                        0,1,1,0,1,
-                        0,1,1,0,0,
-                        0,0,0,0,1,
-                        1,0,0,1,0]
+  { w = 7
+  , h = 7
+  , b = [1,0,1,0,0,0,1,
+         0,1,1,1,1,1,1,
+         0,1,1,0,0,0,0,
+         0,1,1,0,0,0,0,
+         0,0,0,0,1,1,0,
+         1,0,0,0,1,0,1,
+         1,0,0,1,0,0,1]
   }
 
 delta =
-  Signal.map inSeconds (fps 1)
+  Signal.map inSeconds (fps 0.5)
 
 type alias Input =
   { delta : Time
