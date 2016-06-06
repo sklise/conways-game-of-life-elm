@@ -1,8 +1,9 @@
 import Array
-import Debug
-import Graphics.Element exposing (show)
 import Html exposing (..)
-import Time exposing (..)
+import Html.App as Html
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
+import Random
 
 leftIndex: Int -> Int -> Int
 leftIndex i w =
@@ -43,12 +44,6 @@ neighborsToNewGen boardVal neighborCount =
   else
     0
 
-type alias World =
-  { w: Int
-  , h: Int
-  , b: List Int
-  }
-
 worldCensus: World -> World
 worldCensus world =
   let
@@ -59,50 +54,70 @@ worldCensus world =
       b = (List.map2 neighborsToNewGen world.b nc)
     }
 
--- World Update
 
-updateWorld : Input -> World -> World
-updateWorld {delta} model =
-  worldCensus model
+cellToDiv: Int -> Int -> Int -> Html a
+cellToDiv width index cell =
+  div [
+    style
+      [ ("backgroundColor", if cell == 1 then "black" else "white")
+      , ("width", "15px")
+      , ("height", "15px")
+      , ("float", "left")
+      , ("clear", if index % width == 0 then "left" else "none")
+      ]
+    ] [ text " " ]
 
--- View
-view : World -> Html
+renderWorld : World -> List (Html a)
+renderWorld world =
+  (List.indexedMap (cellToDiv world.w) world.b)
+
+-- MODEL
+
+-- World is an array of cell states and dimensions of the world
+type alias World =
+  { w: Int
+  , h: Int
+  , b: List Int
+  }
+
+init : Int -> Int ->  (World, Cmd Msg)
+init w h =
+  (World w h [0 .. w * h], Random.generate Chill (Random.list (w * h) (Random.int 0 1)))
+
+-- UPDATE
+
+type Msg
+  = Advance
+  | Chill (List Int)
+
+update : Msg -> World -> (World, Cmd Msg)
+update msg world =
+  case msg of
+    Advance ->
+      (worldCensus world, Cmd.none)
+    Chill l ->
+      ({world | b = l }, Cmd.none)
+
+-- SUBSCRIPTIONS
+
+subscriptions : World -> Sub Msg
+subscriptions world =
+  Sub.none
+
+-- VIEW
+
+view : World -> Html Msg
 view world =
-  pre []
-    (List.indexedMap (\i n -> text ((toString n) ++ (if (i+1) % world.w == 0 then "\n" else "")) ) world.b)
-
-
-defaultWorld : World
-defaultWorld =
-  { w = 7
-  , h = 7
-  , b = [1,0,1,0,0,0,1,
-         0,1,1,1,1,1,1,
-         0,1,1,0,0,0,0,
-         0,1,1,0,0,0,0,
-         0,0,0,0,1,1,0,
-         1,0,0,0,1,0,1,
-         1,0,0,1,0,0,1]
-  }
-
-delta =
-  Signal.map inSeconds (fps 0.5)
-
-type alias Input =
-  { delta : Time
-  }
-
-input : Signal Input
-input =
-  Signal.sampleOn delta <|
-    Signal.map Input
-      delta
-
-worldState : Signal World
-worldState =
-  Signal.foldp updateWorld defaultWorld input
+  div []
+    [ div [] (renderWorld world)
+    , button [ onClick Advance ] [ text "Advance" ]
+    ]
 
 main =
-  Signal.map view worldState
-
+  Html.program
+    { init = init 60 40
+    , view = view
+    , update = update
+    , subscriptions = subscriptions
+    }
 
