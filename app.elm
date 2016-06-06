@@ -4,16 +4,17 @@ import Html.App as Html
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Random
+import Time exposing (Time, millisecond)
 
-leftIndex: Int -> Int -> Int
+leftIndex : Int -> Int -> Int
 leftIndex i w =
   if (i % w) == 0 then i - 1 + w else i - 1
 
-rightIndex: Int -> Int -> Int
+rightIndex : Int -> Int -> Int
 rightIndex i w =
   if (i + 1) % w == 0 then i + 1 - w else i + 1
 
-buildIndices: Int -> Int -> Int -> List Int
+buildIndices : Int -> Int -> Int -> List Int
 buildIndices i w h =
   let
     t = w * h
@@ -24,6 +25,7 @@ buildIndices i w h =
     , (leftIndex i w), i, (rightIndex i w)
     , (leftIndex down w), down, (rightIndex down w)]
 
+getNeighbors :
 getNeighbors indices cells =
   List.map (\n -> Array.get n cells |> Maybe.withDefault 0) indices
 
@@ -60,8 +62,8 @@ cellToDiv width index cell =
   div [
     style
       [ ("backgroundColor", if cell == 1 then "black" else "white")
-      , ("width", "15px")
-      , ("height", "15px")
+      , ("width", "5px")
+      , ("height", "5px")
       , ("float", "left")
       , ("clear", if index % width == 0 then "left" else "none")
       ]
@@ -87,13 +89,13 @@ init w h =
 -- UPDATE
 
 type Msg
-  = Advance
+  = Advance Time
   | Chill (List Int)
 
 update : Msg -> World -> (World, Cmd Msg)
 update msg world =
   case msg of
-    Advance ->
+    Advance newTime ->
       (worldCensus world, Cmd.none)
     Chill l ->
       ({world | b = l }, Cmd.none)
@@ -102,7 +104,7 @@ update msg world =
 
 subscriptions : World -> Sub Msg
 subscriptions world =
-  Sub.none
+  Time.every (millisecond * 200) Advance
 
 -- VIEW
 
@@ -110,12 +112,11 @@ view : World -> Html Msg
 view world =
   div []
     [ div [] (renderWorld world)
-    , button [ onClick Advance ] [ text "Advance" ]
     ]
 
 main =
   Html.program
-    { init = init 60 40
+    { init = init 50 50
     , view = view
     , update = update
     , subscriptions = subscriptions
