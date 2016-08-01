@@ -1,9 +1,13 @@
+module Main exposing (..)
+
 import Array
 import Html exposing (..)
 import Html.App as Html
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Random
+import Svg exposing (Svg)
+import Svg.Attributes
 import Time exposing (Time, millisecond)
 
 
@@ -87,28 +91,21 @@ worldCensus world =
         }
 
 
-cellToDiv : Int -> Int -> Int -> Html a
+cellToDiv : Int -> Int -> Int -> Svg a
 cellToDiv width index cell =
-    div
-        [ style
-            [ ( "backgroundColor"
-              , if cell == 1 then
-                    "black"
-                else
-                    "white"
-              )
-            , ( "width", "5px" )
-            , ( "height", "5px" )
-            , ( "float", "left" )
-            , ( "clear"
-              , if index % width == 0 then
-                    "left"
-                else
-                    "none"
-              )
+    let
+        fillColor =
+            if cell == 1 then
+                "black"
+            else
+                "white"
+    in
+        Svg.rect
+            [ Svg.Attributes.width "5"
+            , Svg.Attributes.height "5"
+            , Svg.Attributes.fill fillColor
             ]
-        ]
-        [ text " " ]
+            []
 
 
 renderWorld : World -> List (Html a)
@@ -167,14 +164,12 @@ subscriptions world =
 
 view : World -> Html Msg
 view world =
-    div []
-        [ div [] (renderWorld world)
-        ]
+    svg [ Svg.Attributes.viewBox "0 0 100 100", width 200, height 200 ] (renderWorld world)
 
 
 main =
     Html.program
-        { init = init 50 50
+        { init = init 100 100
         , view = view
         , update = update
         , subscriptions = subscriptions
