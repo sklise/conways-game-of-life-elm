@@ -2,9 +2,7 @@ module Main exposing (..)
 
 import Array
 import Html exposing (..)
-import Html.App as Html
 import Html.Attributes exposing (..)
-import Html.Events exposing (..)
 import Random
 import Svg exposing (Svg)
 import Svg.Attributes
@@ -91,9 +89,15 @@ worldCensus world =
         }
 
 
-cellToDiv : Int -> Int -> Int -> Svg a
-cellToDiv width index cell =
+cellToDiv : Int -> Int -> Int -> Int -> Int -> Svg a
+cellToDiv width height cellSize index cell =
     let
+        x = (index % width)
+            |> (*) cellSize
+            |> toString
+        y = (index // width)
+            |> (*) cellSize
+            |> toString
         fillColor =
             if cell == 1 then
                 "black"
@@ -101,8 +105,10 @@ cellToDiv width index cell =
                 "white"
     in
         Svg.rect
-            [ Svg.Attributes.width "5"
-            , Svg.Attributes.height "5"
+            [ Svg.Attributes.width (toString cellSize)
+            , Svg.Attributes.height (toString cellSize)
+            , Svg.Attributes.x x
+            , Svg.Attributes.y y
             , Svg.Attributes.fill fillColor
             ]
             []
@@ -110,7 +116,7 @@ cellToDiv width index cell =
 
 renderWorld : World -> List (Html a)
 renderWorld world =
-    (List.indexedMap (cellToDiv world.w) world.b)
+    (List.indexedMap (cellToDiv world.w world.h world.cellSize) world.b)
 
 
 
@@ -121,13 +127,17 @@ renderWorld world =
 type alias World =
     { w : Int
     , h : Int
+    , cellSize : Int
     , b : List Int
     }
 
 
-init : Int -> Int -> ( World, Cmd Msg )
-init w h =
-    ( World w h [0..w * h], Random.generate Chill (Random.list (w * h) (Random.int 0 1)) )
+init : Int -> Int -> Int -> ( World, Cmd Msg )
+init w h cellSize =
+    (
+        World w h cellSize (List.range 0 (w * h)),
+        Random.generate Chill (Random.list (w * h) (Random.int 0 1))
+    )
 
 
 
@@ -155,7 +165,7 @@ update msg world =
 
 subscriptions : World -> Sub Msg
 subscriptions world =
-    Time.every (millisecond * 200) Advance
+    Time.every (millisecond * 1000) Advance
 
 
 
@@ -164,12 +174,12 @@ subscriptions world =
 
 view : World -> Html Msg
 view world =
-    svg [ Svg.Attributes.viewBox "0 0 100 100", width 200, height 200 ] (renderWorld world)
+    Svg.svg [ Svg.Attributes.viewBox "0 0 200 200", width 1000, height 1000 ] (renderWorld world)
 
 
 main =
     Html.program
-        { init = init 100 100
+        { init = init 100 100 5
         , view = view
         , update = update
         , subscriptions = subscriptions
