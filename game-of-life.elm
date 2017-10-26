@@ -49,10 +49,12 @@ buildIndices i w h =
         ]
 
 
+getNeighbors : List Int -> Array.Array number -> List number
 getNeighbors indices cells =
     List.map (\n -> Array.get n cells |> Maybe.withDefault 0) indices
 
 
+countNeighbors : List number -> Int -> Int -> Int -> number
 countNeighbors board width height =
     let
         boardArr =
@@ -92,12 +94,16 @@ worldCensus world =
 cellToDiv : Int -> Int -> Int -> Int -> Int -> Svg a
 cellToDiv width height cellSize index cell =
     let
-        x = (index % width)
-            |> (*) cellSize
-            |> toString
-        y = (index // width)
-            |> (*) cellSize
-            |> toString
+        x =
+            (index % width)
+                |> (*) cellSize
+                |> toString
+
+        y =
+            (index // width)
+                |> (*) cellSize
+                |> toString
+
         fillColor =
             if cell == 1 then
                 "black"
@@ -134,9 +140,8 @@ type alias World =
 
 init : Int -> Int -> Int -> ( World, Cmd Msg )
 init w h cellSize =
-    (
-        World w h cellSize (List.range 0 (w * h)),
-        Random.generate Chill (Random.list (w * h) (Random.int 0 1))
+    ( World w h cellSize (List.range 0 (w * h))
+    , Random.generate Chill (Random.list (w * h) (Random.int 0 1))
     )
 
 
@@ -174,12 +179,17 @@ subscriptions world =
 
 view : World -> Html Msg
 view world =
-    Svg.svg [ Svg.Attributes.viewBox "0 0 200 200", width 1000, height 1000 ] (renderWorld world)
+    let
+        renderWidth = world.w * world.cellSize
+        renderHeight = world.h * world.cellSize
+    in
+        Svg.svg [ width renderWidth, height renderHeight ] (renderWorld world)
 
 
+main : Program Never World Msg
 main =
     Html.program
-        { init = init 100 100 5
+        { init = init 60 60 10
         , view = view
         , update = update
         , subscriptions = subscriptions
