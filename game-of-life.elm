@@ -113,14 +113,14 @@ worldCensus dict =
         |> Dict.foldl killSpawnLive Dict.empty
 
 
-renderCell : Cell -> Svg msg
-renderCell cell =
+renderCell : Int -> Int -> Cell -> Svg msg
+renderCell xOrigin yOrigin cell =
     Svg.rect
         [ Svg.Attributes.width "10"
         , Svg.Attributes.height "10"
         , Svg.Attributes.stroke "white"
-        , Svg.Attributes.x (toString (cell.x * 10 + 500))
-        , Svg.Attributes.y (toString (cell.y * 10 + 500))
+        , Svg.Attributes.x (toString (cell.x * 10 + xOrigin))
+        , Svg.Attributes.y (toString (cell.y * 10 + yOrigin))
         , Svg.Attributes.fill "black"
         ]
         []
@@ -144,9 +144,9 @@ update msg world =
 -- SUBSCRIPTIONS
 
 
-subscriptions : World -> Sub Msg
-subscriptions world =
-    Time.every (millisecond * 100) Advance
+subscriptions : Float -> World -> Sub Msg
+subscriptions millisPerFrame world =
+    Time.every (millisecond * millisPerFrame) Advance
 
 
 
@@ -155,14 +155,18 @@ subscriptions world =
 
 view : Int -> Int -> World -> Html Msg
 view w h world =
-    Svg.svg
-        [ width w
-        , height h
+    Html.div
+        []
+        [ Html.h1 [] [ Html.text "Conway's Game of Life" ]
+        , Svg.svg
+            [ width w
+            , height h
+            ]
+            (world
+                |> Dict.values
+                |> List.map (renderCell (w // 2) (h // 2))
+            )
         ]
-        (world
-            |> Dict.values
-            |> List.map renderCell
-        )
 
 
 main : Program Never World Msg
@@ -178,7 +182,7 @@ main =
                 ]
             , Cmd.none
             )
-        , view = view 1000 1000
+        , view = view 1000 700
         , update = update
-        , subscriptions = subscriptions
+        , subscriptions = subscriptions 100
         }
