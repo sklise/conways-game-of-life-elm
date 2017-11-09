@@ -40,11 +40,6 @@ coordToKey x y =
     (toString x) ++ "/" ++ (toString y)
 
 
-init : World -> ( World, Cmd Msg )
-init world =
-    ( world, Cmd.none )
-
-
 incNeighborCount : Int -> Int -> Maybe CellWithNeighbors -> Maybe CellWithNeighbors
 incNeighborCount x y i =
     case i of
@@ -65,7 +60,12 @@ updateSelf x y cell =
             Just { cell | s = True }
 
 
-worldToNeighborCount : a -> Cell -> Dict String CellWithNeighbors -> Dict String CellWithNeighbors
+addNeighborTo : Int -> Int -> WorldNeighbors -> WorldNeighbors
+addNeighborTo x y =
+    Dict.update (coordToKey x y) (incNeighborCount x y)
+
+
+worldToNeighborCount : a -> Cell -> WorldNeighbors -> WorldNeighbors
 worldToNeighborCount key cell neighbors =
     let
         x =
@@ -73,49 +73,37 @@ worldToNeighborCount key cell neighbors =
 
         y =
             cell.y
-
-        n0 =
-            Dict.update (coordToKey x y) (updateSelf x y) neighbors
-
-        n1 =
-            Dict.update (coordToKey (x - 1) y) (incNeighborCount (x - 1) y) n0
-
-        n2 =
-            Dict.update (coordToKey (x - 1) (y + 1)) (incNeighborCount (x - 1) (y + 1)) n1
-
-        n3 =
-            Dict.update (coordToKey (x - 1) (y - 1)) (incNeighborCount (x - 1) (y - 1)) n2
-
-        n4 =
-            Dict.update (coordToKey x (y - 1)) (incNeighborCount x (y - 1)) n3
-
-        n5 =
-            Dict.update (coordToKey x (y + 1)) (incNeighborCount x (y + 1)) n4
-
-        n6 =
-            Dict.update (coordToKey (x + 1) y) (incNeighborCount (x + 1) y) n5
-
-        n7 =
-            Dict.update (coordToKey (x + 1) (y - 1)) (incNeighborCount (x + 1) (y - 1)) n6
-
-        n8 =
-            Dict.update (coordToKey (x + 1) (y + 1)) (incNeighborCount (x + 1) (y + 1)) n7
     in
-        n8
+        neighbors
+            |> Dict.update (coordToKey x y) (updateSelf x y)
+            |> addNeighborTo (x - 1) y
+            |> addNeighborTo (x - 1) (y + 1)
+            |> addNeighborTo (x - 1) (y - 1)
+            |> addNeighborTo x (y - 1)
+            |> addNeighborTo x (y + 1)
+            |> addNeighborTo (x + 1) y
+            |> addNeighborTo (x + 1) (y - 1)
+            |> addNeighborTo (x + 1) (y + 1)
 
 
 killSpawnLive :
     String
     -> CellWithNeighbors
-    -> Dict String Cell
-    -> Dict String Cell
-killSpawnLive key entry newDict =
-    if (not entry.s && entry.n == 3) then
-        Dict.insert key { x = entry.x, y = entry.y } newDict
-    else if entry.s && (entry.n == 2 || entry.n == 3) then
-        Dict.insert key { x = entry.x, y = entry.y } newDict
+    -> World
+    -> World
+killSpawnLive key cell newWorld =
+    -- If the cell has 3 neighbors, it either is spawned or stays alive.
+    -- In either case, add this cell to the new state of the world
+    -- If the cell is alive and has 2 neighbors it perisists to the new
+    -- state of the world.
+    -- In all other cases the cell either stays dead or is killed. So just
+    -- return the world as is.
+    if cell.n == 3 then
+        Dict.insert key { x = cell.x, y = cell.y } newWorld
+    else if cell.s && cell.n == 2 then
+        Dict.insert key { x = cell.x, y = cell.y } newWorld
     else
-        newDict
+        newWorld
 
 
 worldCensus : World -> World
@@ -158,32 +146,30 @@ update msg world =
 
 subscriptions : World -> Sub Msg
 subscriptions world =
-    Time.every (millisecond * 500) Advance
+    Time.every (millisecond * 100) Advance
 
 
 
 -- VIEW
 
 
-view : World -> Html Msg
-view world =
+view : Int -> Int -> World -> Html Msg
+view w h world =
     Svg.svg
-        [ width 1000
-        , height 1000
+        [ width w
+        , height h
         ]
-        (List.map renderCell (Dict.values world))
-
-
-newWorld : List ( String, Cell ) -> World
-newWorld l =
-    Dict.fromList l
+        (world
+            |> Dict.values
+            |> List.map renderCell
+        )
 
 
 main : Program Never World Msg
 main =
     Html.program
         { init =
-            ( newWorld
+            ( Dict.fromList
                 [ ( "0/0", { x = 0, y = 0 } )
                 , ( "1/0", { x = 1, y = 0 } )
                 , ( "-1/1", { x = -1, y = 1 } )
@@ -192,7 +178,7 @@ main =
                 ]
             , Cmd.none
             )
-        , view = view
+        , view = view 1000 1000
         , update = update
         , subscriptions = subscriptions
         }
