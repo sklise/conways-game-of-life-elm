@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Conway's Game of Life</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      display: flex;
+      align-items: center;
+      align-content: center;
+      justify-content: center;
+      justify-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+    }
+
+    button:hover {
+      cursor: pointer;
+    }
+
+    #elm {
+      width: 1000px;
+    }
+
+    .gameoutline {
+      background: rgb(212, 212, 212);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="elm"></div>
+  <script src="app.js"></script>
+  <script>
+    Elm.GameOfLife.embed(document.getElementById('elm'))
+  </script>
+</body>
+
+</html>

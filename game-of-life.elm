@@ -1,8 +1,9 @@
-module Main exposing (..)
+module GameOfLife exposing (..)
 
 import Dict exposing (..)
-import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html exposing (Html, button, div, h1, span, text)
+import Html.Attributes exposing (class, style)
+import Html.Events exposing (onClick)
 import Svg exposing (Svg)
 import Svg.Attributes
 import Time exposing (Time, millisecond)
@@ -22,6 +23,16 @@ type alias CellWithNeighbors =
     }
 
 
+type alias Model =
+    { cellSize : Int
+    , height : Int
+    , paused : Bool
+    , speed : Float
+    , width : Int
+    , world : World
+    }
+
+
 type alias World =
     Dict String Cell
 
@@ -32,7 +43,11 @@ type alias WorldNeighbors =
 
 type Msg
     = Advance Time
-    | Chill World
+    | Chill Model
+    | IncreaseSpeed
+    | DecreaseSpeed
+    | Pause
+    | StepForward
 
 
 coordToKey : Int -> Int -> String
@@ -113,14 +128,13 @@ worldCensus dict =
         |> Dict.foldl killSpawnLive Dict.empty
 
 
-renderCell : Int -> Int -> Cell -> Svg msg
-renderCell xOrigin yOrigin cell =
+renderCell : Int -> Int -> Int -> Cell -> Svg msg
+renderCell xOrigin yOrigin cellSize cell =
     Svg.rect
-        [ Svg.Attributes.width "10"
-        , Svg.Attributes.height "10"
-        , Svg.Attributes.stroke "white"
-        , Svg.Attributes.x (toString (cell.x * 10 + xOrigin))
-        , Svg.Attributes.y (toString (cell.y * 10 + yOrigin))
+        [ Svg.Attributes.width (toString cellSize)
+        , Svg.Attributes.height (toString cellSize)
+        , Svg.Attributes.x (toString (cell.x * cellSize + xOrigin))
+        , Svg.Attributes.y (toString (cell.y * cellSize + yOrigin))
         , Svg.Attributes.fill "black"
         ]
         []
@@ -130,59 +144,107 @@ renderCell xOrigin yOrigin cell =
 -- UPDATE
 
 
-update : Msg -> World -> ( World, Cmd Msg )
-update msg world =
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
     case msg of
         Advance newTime ->
-            ( worldCensus world, Cmd.none )
+            ( { model | world = worldCensus model.world }, Cmd.none )
 
-        Chill w ->
-            ( w, Cmd.none )
+        Chill m ->
+            ( m, Cmd.none )
+
+        IncreaseSpeed ->
+            ( { model | speed = (max 10 (model.speed - 25)) }, Cmd.none )
+
+        DecreaseSpeed ->
+            ( { model | speed = model.speed + 25 }, Cmd.none )
+
+        Pause ->
+            ( { model | paused = not model.paused }, Cmd.none )
+
+        StepForward ->
+            ( { model | world = worldCensus model.world }, Cmd.none )
 
 
 
 -- SUBSCRIPTIONS
 
 
-subscriptions : Float -> World -> Sub Msg
-subscriptions millisPerFrame world =
-    Time.every (millisecond * millisPerFrame) Advance
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if model.paused then
+        Sub.none
+    else
+        Time.every (millisecond * model.speed) Advance
 
 
 
 -- VIEW
 
 
-view : Int -> Int -> World -> Html Msg
-view w h world =
-    Html.div
-        []
-        [ Html.h1 [] [ Html.text "Conway's Game of Life" ]
-        , Svg.svg
-            [ width w
-            , height h
+view : Model -> Html Msg
+view model =
+    let
+        pauseButtonText =
+            if model.paused then
+                "Play"
+            else
+                "Pause"
+
+        advanceControls =
+            if model.paused then
+                [ button [ onClick StepForward ] [ text "Step" ]
+                ]
+            else
+                [ button [ onClick IncreaseSpeed ] [ text "Speed up" ]
+                , button [ onClick DecreaseSpeed ] [ text "Slow Down" ]
+                ]
+    in
+        div
+            []
+            [ h1 [] [ text "Conway's Game of Life" ]
+            , button [ onClick Pause ] [ text pauseButtonText ]
+            , span [] advanceControls
+            , div
+                [ class "gameoutline"
+                , style
+                    [ ( "width", (toString model.width) ++ "px" )
+                    , ( "height", (toString model.height) ++ "px" )
+                    ]
+                ]
+                [ Svg.svg
+                    [ Svg.Attributes.width (toString model.width)
+                    , Svg.Attributes.height (toString model.height)
+                    ]
+                    (model.world
+                        |> Dict.values
+                        |> List.map (renderCell (model.width // 2) (model.height // 2) model.cellSize)
+                    )
+                ]
             ]
-            (world
-                |> Dict.values
-                |> List.map (renderCell (w // 2) (h // 2))
-            )
-        ]
 
 
-main : Program Never World Msg
+main : Program Never Model Msg
 main =
     Html.program
         { init =
-            ( Dict.fromList
-                [ ( "0/0", { x = 0, y = 0 } )
-                , ( "1/0", { x = 1, y = 0 } )
-                , ( "-1/1", { x = -1, y = 1 } )
-                , ( "0/1", { x = 0, y = 1 } )
-                , ( "0/2", { x = 0, y = 2 } )
-                ]
+            ( { width = 1000
+              , height = 600
+              , cellSize = 5
+              , paused = False
+              , speed = 100
+              , world =
+                    Dict.fromList
+                        [ ( "0/0", { x = 0, y = 0 } )
+                        , ( "1/0", { x = 1, y = 0 } )
+                        , ( "-1/1", { x = -1, y = 1 } )
+                        , ( "0/1", { x = 0, y = 1 } )
+                        , ( "0/2", { x = 0, y = 2 } )
+                        ]
+              }
             , Cmd.none
             )
-        , view = view 1000 700
+        , view = view
         , update = update
-        , subscriptions = subscriptions 100
+        , subscriptions = subscriptions
         }
