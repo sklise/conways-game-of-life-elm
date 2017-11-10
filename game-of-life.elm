@@ -43,7 +43,6 @@ type alias WorldNeighbors =
 
 type Msg
     = Advance Time
-    | Chill Model
     | IncreaseSpeed
     | DecreaseSpeed
     | Pause
@@ -241,9 +240,6 @@ update msg model =
     case msg of
         Advance newTime ->
             ( { model | world = worldCensus model.world }, Cmd.none )
-
-        Chill m ->
-            ( m, Cmd.none )
 
         IncreaseSpeed ->
             ( { model | speed = (max 10 (model.speed - 25)) }, Cmd.none )
