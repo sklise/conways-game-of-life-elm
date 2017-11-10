@@ -1,8 +1,8 @@
 module GameOfLife exposing (..)
 
 import Dict exposing (..)
-import Html exposing (Html, button, div, h1, span, text)
-import Html.Attributes exposing (class, style)
+import Html exposing (Html, a, button, div, h1, span, text)
+import Html.Attributes exposing (class, href, style, target)
 import Html.Events exposing (onClick)
 import Svg exposing (Svg)
 import Svg.Attributes
@@ -47,6 +47,7 @@ type Msg
     | IncreaseSpeed
     | DecreaseSpeed
     | Pause
+    | SetPattern World
     | StepForward
 
 
@@ -101,11 +102,7 @@ worldToNeighborCount key cell neighbors =
             |> addNeighborTo (x + 1) (y + 1)
 
 
-killSpawnLive :
-    String
-    -> CellWithNeighbors
-    -> World
-    -> World
+killSpawnLive : String -> CellWithNeighbors -> World -> World
 killSpawnLive key cell newWorld =
     -- If the cell has 3 neighbors, it either is spawned or stays alive.
     -- In either case, add this cell to the new state of the world
@@ -140,6 +137,101 @@ renderCell xOrigin yOrigin cellSize cell =
         []
 
 
+patternToButton : ( String, List Cell ) -> Html Msg
+patternToButton pair =
+    button [ onClick (SetPattern (cellListToWorld (Tuple.second pair))) ] [ text (Tuple.first pair) ]
+
+
+cellToPair : Cell -> ( String, Cell )
+cellToPair c =
+    ( coordToKey c.x c.y, c )
+
+
+cellListToWorld : List Cell -> World
+cellListToWorld l =
+    l
+        |> List.map cellToPair
+        |> Dict.fromList
+
+
+methuselahs : List ( String, List Cell )
+methuselahs =
+    [ ( "r-pentomino"
+      , [ { x = 0, y = 0 }
+        , { x = 1, y = 0 }
+        , { x = -1, y = 1 }
+        , { x = 0, y = 1 }
+        , { x = 0, y = 2 }
+        ]
+      )
+    , ( "acorn"
+      , [ { x = 0, y = 0 }
+        , { x = -2, y = -1 }
+        , { x = -2, y = 1 }
+        , { x = -3, y = 1 }
+        , { x = 1, y = 1 }
+        , { x = 2, y = 1 }
+        , { x = 3, y = 1 }
+        ]
+      )
+    , ( "B-heptomino"
+      , [ { x = -1, y = -1 }
+        , { x = 1, y = -1 }
+        , { x = 2, y = -1 }
+        , { x = -1, y = 0 }
+        , { x = 0, y = 0 }
+        , { x = 1, y = 0 }
+        , { x = 0, y = 1 }
+        ]
+      )
+    , ( "Pi-heptomino"
+      , [ { x = -1, y = -1 }
+        , { x = -1, y = 0 }
+        , { x = -1, y = 1 }
+        , { x = 0, y = -1 }
+        , { x = 1, y = -1 }
+        , { x = 1, y = 0 }
+        , { x = 1, y = 1 }
+        ]
+      )
+    , ( "rabbits"
+      , [ { x = -3, y = -1 }
+        , { x = -3, y = 0 }
+        , { x = -2, y = 0 }
+        , { x = -2, y = 1 }
+        , { x = -1, y = 0 }
+        , { x = 1, y = -1 }
+        , { x = 2, y = -1 }
+        , { x = 2, y = 0 }
+        , { x = 3, y = -1 }
+        ]
+      )
+    , ( "bunnies"
+      , [ { x = -3, y = -1 }
+        , { x = -2, y = 2 }
+        , { x = -1, y = 0 }
+        , { x = -1, y = 1 }
+        , { x = 0, y = 2 }
+        , { x = 2, y = 1 }
+        , { x = 3, y = -1 }
+        , { x = 3, y = 0 }
+        , { x = 4, y = 1 }
+        ]
+      )
+    , ( "switch engine"
+      , [ { x = -3, y = 0 }
+        , { x = -2, y = -1 }
+        , { x = -2, y = 1 }
+        , { x = 0, y = -1 }
+        , { x = 0, y = 2 }
+        , { x = 1, y = 1 }
+        , { x = 1, y = 2 }
+        , { x = 2, y = 2 }
+        ]
+      )
+    ]
+
+
 
 -- UPDATE
 
@@ -161,6 +253,9 @@ update msg model =
 
         Pause ->
             ( { model | paused = not model.paused }, Cmd.none )
+
+        SetPattern w ->
+            ( { model | world = w }, Cmd.none )
 
         StepForward ->
             ( { model | world = worldCensus model.world }, Cmd.none )
@@ -199,6 +294,11 @@ view model =
                 [ button [ onClick IncreaseSpeed ] [ text "Speed up" ]
                 , button [ onClick DecreaseSpeed ] [ text "Slow Down" ]
                 ]
+
+        renderedWorld =
+            model.world
+                |> Dict.values
+                |> List.map (renderCell (model.width // 2) (model.height // 2) model.cellSize)
     in
         div
             []
@@ -216,12 +316,25 @@ view model =
                     [ Svg.Attributes.width (toString model.width)
                     , Svg.Attributes.height (toString model.height)
                     ]
-                    (model.world
-                        |> Dict.values
-                        |> List.map (renderCell (model.width // 2) (model.height // 2) model.cellSize)
-                    )
+                    renderedWorld
                 ]
+            , div []
+                (List.concat
+                    [ [ a
+                            [ href "http://conwaylife.com/w/index.php?title=Methuselah"
+                            , target "_blank"
+                            ]
+                            [ text "Methuselah Patterns" ]
+                      , text ": "
+                      ]
+                    , (List.map patternToButton methuselahs)
+                    ]
+                )
             ]
+
+
+
+-- MAIN
 
 
 main : Program Never Model Msg
@@ -234,12 +347,12 @@ main =
               , paused = False
               , speed = 100
               , world =
-                    Dict.fromList
-                        [ ( "0/0", { x = 0, y = 0 } )
-                        , ( "1/0", { x = 1, y = 0 } )
-                        , ( "-1/1", { x = -1, y = 1 } )
-                        , ( "0/1", { x = 0, y = 1 } )
-                        , ( "0/2", { x = 0, y = 2 } )
+                    cellListToWorld
+                        [ { x = 0, y = 0 }
+                        , { x = 1, y = 0 }
+                        , { x = -1, y = 1 }
+                        , { x = 0, y = 1 }
+                        , { x = 0, y = 2 }
                         ]
               }
             , Cmd.none
